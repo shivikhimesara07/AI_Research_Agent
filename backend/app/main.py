@@ -5,10 +5,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.engine import Engine
 
+from .config import settings
 from .db import init_db, make_engine
 from .routers import assistant, papers, search
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("app")
 
 
 def create_app(engine: Engine | None = None) -> FastAPI:
@@ -19,6 +21,11 @@ def create_app(engine: Engine | None = None) -> FastAPI:
         if getattr(app.state, "engine", None) is None:
             app.state.engine = make_engine()
         init_db(app.state.engine)
+        log.info(
+            "Gemini API key: %s | Semantic Scholar API key: %s",
+            "set" if settings.gemini_api_key else "NOT SET (summaries and Q&A disabled)",
+            "set" if settings.s2_api_key else "not set (searches will mostly fall back to arXiv)",
+        )
         yield
 
     app = FastAPI(title="AI Research Assistant", lifespan=lifespan)

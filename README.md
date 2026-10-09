@@ -47,24 +47,43 @@ Interactive API docs: http://localhost:8001/docs
 
 ## Setup
 
-Requirements: Python 3.11+ and Node.js 20+.
+Requirements: **Python 3.10+** (tested with 3.11 and 3.13), **Node.js 20+** (tested with 26), and git.
+Commands below are for macOS/Linux; Windows equivalents are noted where they differ.
 
-### 1. API keys
+### 1. Get the code
+
+```bash
+git clone https://github.com/shivikhimesara07/AI_Research_Agent.git
+cd AI_Research_Agent
+```
+
+All later steps start from this `AI_Research_Agent` folder (the repository root).
+
+### 2. API keys
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env`:
+(Windows: `copy .env.example .env`)
 
-- `GEMINI_API_KEY` — required for summaries and Q&A ([get one](https://aistudio.google.com/apikey))
-- `SEMANTIC_SCHOLAR_API_KEY` — optional but recommended; without it searches are heavily rate-limited
-  and often fall back to arXiv ([request one](https://www.semanticscholar.org/product/api))
-- `GEMINI_MODEL` — optional, defaults to `gemini-2.5-flash`
+Open `.env` in a text editor and fill in:
+
+- `GEMINI_API_KEY` — **required** for summaries and Q&A ([get one](https://aistudio.google.com/apikey)).
+  Replace `your-gemini-key-here` with your key.
+- `SEMANTIC_SCHOLAR_API_KEY` — **optional**; leave it empty if you don't have one
+  ([request one](https://www.semanticscholar.org/product/api)). Without it, Semantic Scholar rate-limits
+  almost every request and search falls back to arXiv, which still works.
+- `GEMINI_MODEL` — optional, defaults to `gemini-2.5-flash`.
+
+Keys are read when the backend starts. **If you edit `.env` while the backend is running, stop it
+(Ctrl+C) and start it again.** On startup the backend logs whether each key was found.
 
 `.env` is gitignored — never commit it.
 
-### 2. Backend
+### 3. Backend (terminal 1)
+
+From the repository root:
 
 ```bash
 cd backend
@@ -73,7 +92,14 @@ python3 -m venv .venv
 .venv/bin/uvicorn app.main:app --reload --reload-dir app --port 8001
 ```
 
-### 3. Frontend (in a second terminal)
+Windows: use `py -m venv .venv`, then `.venv\Scripts\pip install -r requirements.txt` and
+`.venv\Scripts\uvicorn app.main:app --reload --reload-dir app --port 8001`.
+
+Leave this terminal running. You should see `Gemini API key: set` in its output.
+
+### 4. Frontend (terminal 2)
+
+Open a second terminal, go to the repository root again (`cd path/to/AI_Research_Agent`), then:
 
 ```bash
 cd frontend
@@ -85,8 +111,22 @@ Open http://localhost:5174.
 
 The database and PDFs are stored in `backend/data/` (created automatically).
 
+### Ports
+
+The backend uses port **8001** and the frontend **5174**. If either is already in use, startup fails
+with a port error. To use other ports, change `--port` for the backend and set environment variables
+for the frontend, e.g. backend on 8002 and frontend on 5180:
+
+```bash
+FRONTEND_PORT=5180 BACKEND_URL=http://localhost:8002 npm run dev
+```
+
+(Windows PowerShell: `$env:FRONTEND_PORT=5180; $env:BACKEND_URL="http://localhost:8002"; npm run dev`)
+
 ### Known limitations
 
+- **Search without a Semantic Scholar key uses arXiv almost every time.** The app tries Semantic
+  Scholar once, and falls back to arXiv immediately when it is rate-limited.
 - **Upload size is checked only on the server.** A file over 25 MB is fully uploaded before it is
   rejected with "PDF is larger than 25 MB"; on a slow connection that wait can be noticeable.
 - **The summary loading message always mentions downloading the PDF**, even for papers that have
@@ -101,8 +141,12 @@ The database and PDFs are stored in `backend/data/` (created automatically).
 
 ### Tests
 
+From the repository root:
+
 ```bash
 cd backend && .venv/bin/pytest
 ```
+
+(Windows: `cd backend` then `.venv\Scripts\pytest`)
 
 Tests use fake search/PDF/LLM services and an in-memory database, so they need no API keys or network.

@@ -56,6 +56,9 @@ frontend/src/      api.js (all fetch calls), App.jsx, components/
 `GEMINI_API_KEY` (needed for summary/Q&A), `SEMANTIC_SCHOLAR_API_KEY` (optional; without it S2 is
 heavily rate-limited and search often falls back to arXiv), `GEMINI_MODEL` (default
 `gemini-2.5-flash`). Optional: `DATA_DIR`, `DATABASE_URL`, `S2_BASE_URL`, `ARXIV_BASE_URL`.
+Empty keys and unchanged `.env.example` placeholders (`your-...-here`) count as "not set"
+(`config._secret`). Without an S2 key the client makes one attempt (no retries) before falling back.
+Frontend dev server: `FRONTEND_PORT` (default 5174), `BACKEND_URL` (default http://localhost:8001).
 
 ## Commands
 ```bash

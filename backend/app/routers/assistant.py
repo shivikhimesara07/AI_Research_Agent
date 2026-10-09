@@ -15,7 +15,7 @@ def _llm_http_error(exc: LLMError) -> HTTPException:
     if isinstance(exc, LLMRateLimited):
         return HTTPException(503, "The LLM is rate limited right now. Try again in a minute.")
     if isinstance(exc, LLMNotConfigured):
-        return HTTPException(503, "GEMINI_API_KEY is not configured on the server.")
+        return HTTPException(503, str(exc))
     return HTTPException(502, str(exc))
 
 

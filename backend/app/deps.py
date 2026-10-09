@@ -13,8 +13,14 @@ from .services.search_service import ArxivClient, SearchService
 
 @lru_cache
 def get_s2_client() -> S2Client:
-    # One shared instance so the throttle applies across all requests.
-    return S2Client(settings.s2_base_url, settings.s2_api_key, user_agent=settings.user_agent)
+    # One shared instance so the throttle applies across all requests. Without a key S2 almost
+    # always answers 429, so don't spend seconds retrying before the arXiv fallback.
+    return S2Client(
+        settings.s2_base_url,
+        settings.s2_api_key,
+        max_attempts=3 if settings.s2_api_key else 1,
+        user_agent=settings.user_agent,
+    )
 
 
 @lru_cache

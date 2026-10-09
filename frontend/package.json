@@ -1,5 +1,5 @@
 {
-  "name": "research-assistant-frontend",
+  "name": "ai-research-agent-frontend",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -17,6 +17,6 @@
     "@tailwindcss/vite": "4.1.8",
     "@vitejs/plugin-react": "4.5.0",
     "tailwindcss": "4.1.8",
-    "vite": "6.3.5"
+    "vite": "6.4.4"
   }
 }

@@ -85,7 +85,9 @@ class GeminiLLMService:
 
     def _require_client(self):
         if self._client is None:
-            raise LLMNotConfigured("GEMINI_API_KEY is not set")
+            raise LLMNotConfigured(
+                "GEMINI_API_KEY is not set. Add it to .env and restart the backend."
+            )
         return self._client
 
     async def _generate(self, contents, config=None):
@@ -103,6 +105,10 @@ class GeminiLLMService:
                         await asyncio.sleep(5 * (attempt + 1))
                         continue
                     raise LLMRateLimited("Gemini rate limit hit; try again in a minute") from exc
+                if exc.code in (400, 401, 403) and "api key" in (exc.message or "").lower():
+                    raise LLMNotConfigured(
+                        "GEMINI_API_KEY was rejected by Google. Check the key in .env and restart the backend."
+                    ) from exc
                 raise LLMError(f"Gemini error {exc.code}: {exc.message}") from exc
         raise LLMRateLimited("Gemini rate limit hit; try again in a minute")
 

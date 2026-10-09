@@ -12,16 +12,27 @@ load_dotenv(REPO_ROOT / ".env")
 
 
 def _env(name: str, default: str | None = None) -> str | None:
-    value = os.getenv(name)
+    value = (os.getenv(name) or "").strip()
     return value if value else default
+
+
+def _is_placeholder(value: str) -> bool:
+    # Values copied unchanged from .env.example, e.g. "your-gemini-key-here".
+    return value.lower().startswith("your-") and value.lower().endswith("-here")
+
+
+def _secret(name: str) -> str | None:
+    """An API key from the environment; empty or placeholder values count as not set."""
+    value = _env(name)
+    return None if value is None or _is_placeholder(value) else value
 
 
 @dataclass(frozen=True)
 class Settings:
-    gemini_api_key: str | None = field(default_factory=lambda: _env("GEMINI_API_KEY"))
+    gemini_api_key: str | None = field(default_factory=lambda: _secret("GEMINI_API_KEY"))
     gemini_model: str = field(default_factory=lambda: _env("GEMINI_MODEL", "gemini-2.5-flash"))
     # Optional: without it S2 is called unauthenticated (shared, heavily rate-limited pool).
-    s2_api_key: str | None = field(default_factory=lambda: _env("SEMANTIC_SCHOLAR_API_KEY"))
+    s2_api_key: str | None = field(default_factory=lambda: _secret("SEMANTIC_SCHOLAR_API_KEY"))
     s2_base_url: str = field(
         default_factory=lambda: _env("S2_BASE_URL", "https://api.semanticscholar.org/graph/v1")
     )
