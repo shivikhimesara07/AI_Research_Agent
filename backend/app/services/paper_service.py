@@ -211,6 +211,7 @@ class PaperService:
             return paper.summary, paper.summary_basis
 
         text, basis = self._llm_input(paper)
+        log.info("summarize paper=%s basis=%s text_chars=%d", paper.id, basis, len(text))
         summary = await self.llm.summarize(paper.title, text, basis)
         paper.summary = summary
         paper.summary_basis = basis
