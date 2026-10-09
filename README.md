@@ -85,6 +85,20 @@ Open http://localhost:5174.
 
 The database and PDFs are stored in `backend/data/` (created automatically).
 
+### Known limitations
+
+- **Upload size is checked only on the server.** A file over 25 MB is fully uploaded before it is
+  rejected with "PDF is larger than 25 MB"; on a slow connection that wait can be noticeable.
+- **The summary loading message always mentions downloading the PDF**, even for papers that have
+  no PDF available.
+- **Abstract-only summaries can add small inferences.** When no full text is available the model is
+  told so, but it may still expand acronyms that the abstract leaves unexplained.
+- **Duplicate detection for uploads is byte-exact.** Re-uploading the same file is detected; a
+  different copy of the same paper (e.g. another arXiv version) is only matched when an arXiv ID
+  or DOI lookup resolves it to a paper already in the library.
+- In the development server, React StrictMode fetches a paper's details twice when it is opened.
+  Production builds do not.
+
 ### Tests
 
 ```bash

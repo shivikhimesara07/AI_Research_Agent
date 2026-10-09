@@ -41,6 +41,9 @@ frontend/src/      api.js (all fetch calls), App.jsx, components/
   (a) arXiv id / DOI regex → S2 lookup, accepted only if the S2 title appears in the first ~3k
   chars of page 1 (guards against cited ids); (b) Gemini JSON with `response_schema`, validated
   with Pydantic; (c) PyMuPDF font-size heuristics; else filename.
+- **Upload dedupe:** `Paper.file_hash` is the sha256 of the PDF at `pdf_path`. An upload whose bytes
+  match an existing paper returns that paper with HTTP 200 (201 = newly created) before any file
+  write, extraction, or LLM call. `db._migrate` adds the column to older DBs and backfills it.
 - **LLM budget:** `strip_references` drops the bibliography (keeps appendices after it) and caps at
   120k chars. Ask sends only the last 4 Q/A exchanges (`HISTORY_EXCHANGES`).
 - **Summary cache:** `summary_basis` is stored; an `abstract`-based summary is regenerated once
