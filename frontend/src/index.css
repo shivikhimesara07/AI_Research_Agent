@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+.prose-summary h1, .prose-summary h2, .prose-summary h3 { font-weight: 600; margin-top: 0.75rem; }
+.prose-summary p { margin: 0.4rem 0; }
+.prose-summary ul { list-style: disc; padding-left: 1.25rem; margin: 0.4rem 0; }
+.prose-summary ol { list-style: decimal; padding-left: 1.25rem; margin: 0.4rem 0; }
+.prose-summary strong { font-weight: 600; }
+.prose-summary code { font-size: 0.85em; background: rgb(0 0 0 / 0.05); padding: 0 0.2rem; border-radius: 0.2rem; }
