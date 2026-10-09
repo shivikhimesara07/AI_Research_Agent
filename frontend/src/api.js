@@ -1,6 +1,6 @@
 // Thin fetch wrappers around the backend API. All paths are proxied to FastAPI by Vite.
 
-async function request(path, options = {}) {
+async function send(path, options = {}) {
   const resp = await fetch(`/api${path}`, options);
   if (!resp.ok) {
     let detail = `${resp.status} ${resp.statusText}`;
@@ -12,6 +12,11 @@ async function request(path, options = {}) {
     }
     throw new Error(detail);
   }
+  return resp;
+}
+
+async function request(path, options = {}) {
+  const resp = await send(path, options);
   return resp.status === 204 ? null : resp.json();
 }
 
@@ -27,10 +32,12 @@ export const api = {
   getPaper: (id) => request(`/papers/${id}`),
   savePaper: (meta) => request("/papers", json("POST", meta)),
   deletePaper: (id) => request(`/papers/${id}`, { method: "DELETE" }),
-  uploadPdf: (file) => {
+  // Resolves to { paper, created }; created is false when this exact PDF was already uploaded.
+  uploadPdf: async (file) => {
     const form = new FormData();
     form.append("file", file);
-    return request("/papers/upload", { method: "POST", body: form });
+    const resp = await send("/papers/upload", { method: "POST", body: form });
+    return { paper: await resp.json(), created: resp.status === 201 };
   },
   summarize: (id, refresh = false) => request(`/papers/${id}/summary?refresh=${refresh}`, { method: "POST" }),
   messages: (id) => request(`/papers/${id}/messages`),

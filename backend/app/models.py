@@ -28,6 +28,7 @@ class Paper(SQLModel, table=True):
     url: str | None = None
     pdf_url: str | None = None
     pdf_path: str | None = None
+    file_hash: str | None = Field(default=None, index=True)  # sha256 of the PDF at pdf_path
     full_text: str | None = Field(default=None, sa_column=Column(Text))
     full_text_status: str = "pending"  # pending | ok | failed
     summary: str | None = Field(default=None, sa_column=Column(Text))

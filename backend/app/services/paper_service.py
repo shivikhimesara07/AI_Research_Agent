@@ -1,5 +1,6 @@
 """Orchestration over the DB + search/PDF/LLM services. No FastAPI imports here."""
 import asyncio
+import hashlib
 import logging
 import re
 import uuid
@@ -53,7 +54,15 @@ class PaperService:
 
     # ---------- upload ----------
 
-    async def ingest_upload(self, session: Session, filename: str, data: bytes) -> Paper:
+    async def ingest_upload(self, session: Session, filename: str, data: bytes) -> tuple[Paper, bool]:
+        """Store an uploaded PDF. Returns (paper, created); created is False for a duplicate."""
+        file_hash = hashlib.sha256(data).hexdigest()
+        existing = session.exec(select(Paper).where(Paper.file_hash == file_hash)).first()
+        if existing:
+            # Identical bytes are already in the library: skip writing, extraction and LLM calls.
+            log.info("upload is a duplicate of paper %s (sha256 %s)", existing.id, file_hash[:12])
+            return existing, False
+
         self.upload_dir.mkdir(parents=True, exist_ok=True)
         path = self.upload_dir / f"upload_{uuid.uuid4().hex}.pdf"
         path.write_bytes(data)
@@ -72,12 +81,13 @@ class PaperService:
                 if existing.pdf_path and existing.pdf_path != str(path):
                     Path(existing.pdf_path).unlink(missing_ok=True)
                 existing.pdf_path = str(path)
+                existing.file_hash = file_hash
                 existing.full_text = full_text or existing.full_text
                 existing.full_text_status = "ok" if full_text.strip() else existing.full_text_status
                 session.add(existing)
                 session.commit()
                 session.refresh(existing)
-                return existing
+                return existing, False
 
         paper = Paper(
             source="upload",
@@ -88,13 +98,14 @@ class PaperService:
             abstract=meta.abstract,
             url=extra.get("url"),
             pdf_path=str(path),
+            file_hash=file_hash,
             full_text=full_text if full_text.strip() else None,
             full_text_status="ok" if full_text.strip() else "failed",
         )
         session.add(paper)
         session.commit()
         session.refresh(paper)
-        return paper
+        return paper, True
 
     async def extract_upload_metadata(
         self, first_pages: str, path: Path, filename: str = "upload.pdf"
@@ -185,6 +196,7 @@ class PaperService:
 
         if text.strip():
             paper.pdf_path = str(path)
+            paper.file_hash = hashlib.sha256(path.read_bytes()).hexdigest()
             paper.full_text = text
             paper.full_text_status = "ok"
         else:

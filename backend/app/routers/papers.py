@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlmodel import Session, select
 
 from ..db import get_session
@@ -35,19 +35,23 @@ def save_paper(
 
 @router.post("/upload", response_model=PaperOut, status_code=201)
 async def upload_paper(
+    response: Response,
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
     service: PaperService = Depends(get_paper_service),
 ):
+    """201 with a new paper, or 200 with the existing paper when the same PDF was uploaded before."""
     data = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "PDF is larger than 25 MB")
     if b"%PDF-" not in data[:1024]:
         raise HTTPException(400, "File is not a PDF")
     try:
-        paper = await service.ingest_upload(session, file.filename or "upload.pdf", data)
+        paper, created = await service.ingest_upload(session, file.filename or "upload.pdf", data)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+    if not created:
+        response.status_code = 200
     return PaperOut.from_paper(paper)
 
 

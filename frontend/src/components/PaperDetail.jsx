@@ -29,7 +29,9 @@ export default function PaperDetail({ paperId, onClose }) {
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState(null);
-  const [lastBasis, setLastBasis] = useState(null);
+  // What Q&A answers are based on. Known on open when the full-text fetch already failed (or
+  // succeeded); otherwise learned from the first summary or answer.
+  const [qaBasis, setQaBasis] = useState(null);
   const chatEnd = useRef(null);
 
   useEffect(() => {
@@ -37,12 +39,13 @@ export default function PaperDetail({ paperId, onClose }) {
     setPaper(null);
     setError(null);
     setAskError(null);
-    setLastBasis(null);
+    setQaBasis(null);
     Promise.all([api.getPaper(paperId), api.messages(paperId)])
       .then(([p, msgs]) => {
         if (cancelled) return;
         setPaper(p);
         setMessages(msgs);
+        setQaBasis(p.full_text_status === "failed" ? "abstract" : p.full_text_status === "ok" ? "full_text" : null);
         setSummary(p.summary ? { status: "done", text: p.summary, basis: p.summary_basis } : { status: "idle" });
       })
       .catch((err) => !cancelled && setError(err.message));
@@ -60,6 +63,7 @@ export default function PaperDetail({ paperId, onClose }) {
     try {
       const r = await api.summarize(paperId, refresh);
       setSummary({ status: "done", text: r.summary, basis: r.summary_basis });
+      setQaBasis(r.summary_basis); // summary and Q&A read the same text
     } catch (err) {
       setSummary({ status: "error", error: err.message });
     }
@@ -74,7 +78,7 @@ export default function PaperDetail({ paperId, onClose }) {
     setMessages((m) => [...m, { id: `pending-${Date.now()}`, role: "user", content: text }]);
     try {
       const r = await api.ask(paperId, text);
-      setLastBasis(r.content_basis);
+      setQaBasis(r.content_basis);
       setMessages(await api.messages(paperId));
     } catch (err) {
       setAskError(err.message);
@@ -147,7 +151,7 @@ export default function PaperDetail({ paperId, onClose }) {
       {/* ---------- Q&A ---------- */}
       <section className="rounded-lg border border-slate-200 bg-white p-4">
         <h3 className="mb-2 font-semibold text-slate-900">Ask about this paper</h3>
-        <BasisNote basis={lastBasis} />
+        <BasisNote basis={qaBasis} />
         <div className="max-h-[28rem] space-y-3 overflow-y-auto">
           {messages.map((m) => (
             <div key={m.id} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>

@@ -15,8 +15,8 @@ export default function UploadView({ onOpen, onLibraryChanged }) {
     }
     setState({ status: "loading", name: file.name });
     try {
-      const paper = await api.uploadPdf(file);
-      setState({ status: "done", paper });
+      const { paper, created } = await api.uploadPdf(file);
+      setState({ status: "done", paper, created });
       onLibraryChanged();
     } catch (err) {
       setState({ status: "error", error: err.message });
@@ -69,7 +69,11 @@ export default function UploadView({ onOpen, onLibraryChanged }) {
       {state.status === "error" && <p className="rounded-md bg-red-50 p-3 text-sm text-red-700">{state.error}</p>}
       {state.status === "done" && (
         <div className="space-y-2">
-          <p className="text-sm font-medium text-emerald-700">Added to your library:</p>
+          {state.created ? (
+            <p className="text-sm font-medium text-emerald-700">Added to your library:</p>
+          ) : (
+            <p className="text-sm font-medium text-slate-700">This PDF is already in your library:</p>
+          )}
           <PaperCard paper={state.paper} onOpen={() => onOpen(state.paper.id)}>
             <button
               onClick={() => onOpen(state.paper.id)}
