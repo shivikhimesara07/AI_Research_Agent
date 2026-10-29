@@ -141,12 +141,49 @@ FRONTEND_PORT=5180 BACKEND_URL=http://localhost:8002 npm run dev
 
 ### Tests
 
-From the repository root:
+All commands run from `backend/` after the backend setup above. The tests need no API keys and no
+network: the LLM, Semantic Scholar and arXiv are faked or blocked, and the database is in memory.
 
 ```bash
-cd backend && .venv/bin/pytest
+cd backend
+.venv/bin/pytest
 ```
 
-(Windows: `cd backend` then `.venv\Scripts\pytest`)
+Expected result: `201 passed, 24 xfailed`. The xfailed tests are deliberate: each documents a known
+bug in the PDF heuristics and is marked `strict`, so the suite fails if a bug is fixed without
+removing its marker. Run `.venv/bin/pytest -rx` to list them with their reasons.
 
-Tests use fake search/PDF/LLM services and an in-memory database, so they need no API keys or network.
+| Test file | Type |
+|---|---|
+| `test_pdf_service.py`, `test_s2_client.py`, `test_search_service.py`, `test_llm_service.py`, `test_config.py`, `test_db.py` | Unit |
+| `test_paper_service.py` | Service integration (real in-memory DB, faked PDF/LLM/search) |
+| `test_api.py`, `test_health.py`, `test_upload.py` | API (FastAPI routes) |
+| `test_requirements.py` | End-to-end per HW1 requirement (real PDF parser and pipeline; only the LLM faked) |
+| `test_pdf_adversarial.py` | Adversarial inputs against the PDF heuristics |
+
+Windows: use `.venv\Scripts\pytest` and `.venv\Scripts\python` in place of `.venv/bin/...`.
+
+#### Coverage report
+
+Coverage is configured in `backend/.coveragerc` (the `app` package, with branch coverage).
+
+```bash
+cd backend
+.venv/bin/pytest --cov --cov-report=term-missing
+```
+
+For a browsable report, add `--cov-report=html` and open `backend/htmlcov/index.html`.
+Saved reports: `coverage-baseline.txt` (HW1 tests only) and `coverage-final.txt` (full suite).
+
+#### Mutation testing
+
+`tools/mutate.py` plants 18 known bugs one at a time, in a temporary copy of the code, and reports
+whether the suite catches each one. Your working files are never modified. It takes about 30 seconds.
+
+```bash
+cd backend
+.venv/bin/python tools/mutate.py
+```
+
+Expected result: `Mutation score: 15/18 (83%)`. Results across all test-writing rounds are in
+[hw2-results.md](hw2-results.md).

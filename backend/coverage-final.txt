@@ -1,0 +1,48 @@
+Backend coverage after HW2 (final suite: HW1 tests + generated + Round 1 + Round 2)
+Generated: 2026-10-27  |  app code: commit 171a4f6 (unchanged since HW1)  |  coverage.py 7.17.0  |  branch coverage: on
+Command:   cd backend && .venv/bin/pytest --cov --cov-report=term-missing
+Result:    201 passed, 24 xfailed, 1 warning  (xfailed = documented known bugs, strict)
+
+Per-file LINE and BRANCH coverage (app package)
+
+File                              Lines   Hit  Line %   Branches   Hit Partial Branch %
+---------------------------------------------------------------------------------------
+app/config.py                        32    31   96.9%          0     0       0      n/a
+app/db.py                            41    41  100.0%          8     7       1    87.5%
+app/deps.py                          22    21   95.5%          0     0       0      n/a
+app/main.py                          29    28   96.6%          2     1       1    50.0%
+app/models.py                        83    83  100.0%          0     0       0      n/a
+app/routers/assistant.py             38    38  100.0%          6     6       0   100.0%
+app/routers/papers.py                40    40  100.0%          8     8       0   100.0%
+app/routers/search.py                22    22  100.0%          4     3       1    75.0%
+app/services/llm_service.py          69    68   98.6%         14    13       1    92.9%
+app/services/paper_service.py       164   161   98.2%         48    46       2    95.8%
+app/services/pdf_service.py         158   152   96.2%         74    66       8    89.2%
+app/services/s2_client.py            87    87  100.0%         20    20       0   100.0%
+app/services/search_service.py       67    67  100.0%          8     8       0   100.0%
+---------------------------------------------------------------------------------------
+TOTAL                               852   839   98.5%        192   178      14    92.7%
+
+Combined (coverage.py 'Cover', lines + branches): 97.4%
+Branch % = branch outcomes taken / all possible outcomes. Partial = branch points where only one side ran.
+n/a = file has no branches.
+
+Standard coverage.py report (with missing lines; 'a->b' = branch from line a to b never taken)
+
+Name                             Stmts   Miss Branch BrPart  Cover   Missing
+----------------------------------------------------------------------------
+app/config.py                       32      1      0      0  96.9%   56
+app/db.py                           41      0      8      1  98.0%   16->18
+app/deps.py                         22      1      0      0  95.5%   28
+app/main.py                         29      1      2      1  93.5%   22
+app/models.py                       83      0      0      0 100.0%
+app/routers/assistant.py            38      0      6      0 100.0%
+app/routers/papers.py               40      0      8      0 100.0%
+app/routers/search.py               22      0      4      1  96.2%   27->32
+app/services/llm_service.py         69      1     14      1  97.6%   113
+app/services/paper_service.py      164      3     48      2  97.6%   79->92, 82, 194-195
+app/services/pdf_service.py        158      6     74      8  94.0%   103, 114, 129->135, 139->151, 150, 166, 206->212, 214-215
+app/services/s2_client.py           87      0     20      0 100.0%
+app/services/search_service.py      67      0      8      0 100.0%
+----------------------------------------------------------------------------
+TOTAL                              852     13    192     14  97.4%
