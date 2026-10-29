@@ -5,6 +5,8 @@ from app.routers import papers as papers_router
 from app.services.llm_service import LLMError, LLMNotConfigured, LLMRateLimited
 from app.services.search_service import SearchBadRequest, SearchUnavailable
 
+from .pdf_factory import KnownPaper
+
 PDF = b"%PDF-1.7 uploaded bytes"
 META = {"source": "semantic_scholar", "external_id": "s2-1", "title": "Saved Paper",
         "authors": ["A. Author"], "year": 2020, "abstract": "An abstract.", "url": "https://s2/1"}
@@ -101,10 +103,15 @@ def test_delete_removes_paper_and_its_messages(client):
 # ---------- upload ----------
 
 
-def test_upload_creates_paper(client):
-    resp = upload(client)
+def test_upload_creates_paper(real_client, tmp_path):
+    # A real generated PDF through the real parser: the four fields must match what we wrote into it.
+    resp = upload(real_client, KnownPaper.build(tmp_path / "known.pdf"))
     assert resp.status_code == 201
     body = resp.json()
+    assert body["title"] == KnownPaper.TITLE
+    assert body["authors"] == KnownPaper.AUTHORS
+    assert body["year"] == KnownPaper.YEAR
+    assert body["abstract"] == KnownPaper.ABSTRACT
     assert body["source"] == "upload" and body["has_pdf"] and body["full_text_status"] == "ok"
 
 

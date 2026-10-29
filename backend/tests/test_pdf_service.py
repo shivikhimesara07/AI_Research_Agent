@@ -92,9 +92,14 @@ def test_extract_abstract_missing_returns_none(pdf):
     assert pdf.extract_abstract("Title\n1 Introduction\nNo abstract heading here.") is None
 
 
-def test_extract_abstract_is_capped(pdf):
-    text = "Abstract\n" + "word " * 2000 + "\nIntroduction\n"
-    assert len(pdf.extract_abstract(text)) == 3000
+def test_extract_abstract_returns_a_full_length_abstract(pdf):
+    # Requirement: extract the abstract. A typical abstract is 150-300 words (~1,000-2,000 chars),
+    # and it must come back whole. (The code also caps very long matches at some length; the
+    # requirement doesn't say where, so that cap isn't asserted here.)
+    sentence = "We evaluate tidal pruning across protein families and report contact precision. "
+    abstract = (sentence * 22).strip()  # ~250 words, ~1,800 chars
+    text = f"Abstract\n{abstract}\n1 Introduction\nBody."
+    assert pdf.extract_abstract(text) == abstract
 
 
 # ---------- layout_metadata ----------
@@ -150,7 +155,9 @@ def test_layout_metadata_ignores_years_after_the_abstract(pdf, tmp_path):
         [[("A Title Here", 18), "Ann Author", "Abstract", "Compared with work from 2019.", "Introduction"]],
     )
     _, first = pdf.extract_text(path)
-    assert pdf.layout_metadata(path, first).year is None
+    # Requirement: the paper's publication year. 2019 is a cited work's year, so it must not be
+    # reported. (Whether to return None or guess some other year is the code's choice.)
+    assert pdf.layout_metadata(path, first).year != 2019
 
 
 def test_layout_metadata_falls_back_to_pdf_metadata(pdf, tmp_path):
@@ -162,7 +169,9 @@ def test_layout_metadata_falls_back_to_pdf_metadata(pdf, tmp_path):
     _, first = pdf.extract_text(path)
     meta = pdf.layout_metadata(path, first)
     assert meta.authors == ["Ada Lovelace", "Alan Turing"]
-    assert meta.year == 2019
+    # Not asserted: the code falls back to the PDF file's creationDate for the year. That is when
+    # the FILE was made, not the publication year the requirement asks for, so a test should not
+    # endorse it as correct.
 
 
 def test_layout_metadata_blank_page_returns_none(pdf, tmp_path):
@@ -188,15 +197,43 @@ def test_strip_references_drops_bibliography(pdf):
     assert "Some cited paper" not in out
 
 
-def test_strip_references_ignores_heading_in_first_half(pdf):
-    text = "References\nThis early line is part of the intro.\n" + BODY
-    assert pdf.strip_references(text) == text
-
-
-def test_strip_references_uses_last_heading(pdf):
-    text = BODY + "References\nmore body\n" + BODY + "7 REFERENCES\n[1] cited.\n"
+def test_strip_references_early_mention_does_not_truncate_paper(pdf):
+    # Requirement: drop the bibliography, not the paper. A "References" line early in the paper
+    # (here ~15% in) is followed by the real body; the real bibliography is at the end.
+    text = ("Introduction\nShort intro.\nReferences\nWe build on prior pruning work.\n" + BODY * 2
+            + "References\n[1] Real bibliography entry.\n")
     out = pdf.strip_references(text)
-    assert "more body" in out and "[1] cited." not in out
+    assert "We build on prior pruning work." in out and out.count("Body sentence") == 80
+    assert "Real bibliography entry" not in out
+    # Not asserted: how the code tells an early mention from the real section (a position
+    # threshold). The requirement is silent on that, only the outcome above is required.
+
+
+# Requirement: drop the bibliography, keep appendices. A common real layout has two reference
+# sections: the main bibliography, then an appendix, then the appendix's own short reference list.
+# Both headings sit deep in the paper, so which heading the code cuts at decides the outcome.
+TWO_REFERENCE_SECTIONS = (
+    BODY * 3
+    + "References\n[1] Main bibliography entry one.\n[2] Main bibliography entry two.\n"
+    + "Appendix A: Hyperparameters\nLearning rate 3e-4 for all runs.\n"
+    + "References\n[A1] Appendix-only citation.\n"
+)
+
+
+@pytest.mark.xfail(strict=True, reason="Known bug found by this test: the cut is made at the LAST "
+                   "'References' heading, so with two reference sections the main bibliography stays in "
+                   "the text sent to the LLM. Cutting at the first heading in the back half would fix it.")
+def test_strip_references_drops_main_bibliography_when_appendix_has_its_own(pdf):
+    out = pdf.strip_references(TWO_REFERENCE_SECTIONS)
+    assert "Body sentence" in out
+    assert "Learning rate 3e-4" in out                 # appendix kept
+    assert "Main bibliography entry" not in out        # main bibliography dropped
+
+
+def test_strip_references_drops_appendix_reference_list(pdf):
+    # Passes today. Together with the test above it pins first-vs-last: cutting at the last heading
+    # fails the test above, cutting at the first heading fails this one.
+    assert "Appendix-only citation" not in pdf.strip_references(TWO_REFERENCE_SECTIONS)
 
 
 def test_strip_references_keeps_named_appendix(pdf):
@@ -241,7 +278,9 @@ async def test_download_pdf_saves_file(tmp_path):
 
 async def test_download_pdf_accepts_octet_stream_with_magic_bytes(tmp_path):
     svc = _service(lambda req: httpx.Response(200, content=PDF_BODY, headers={"content-type": "application/octet-stream"}))
-    assert await svc.download_pdf("https://x/p", tmp_path / "p.pdf") is not None
+    dest = tmp_path / "p.pdf"
+    assert await svc.download_pdf("https://x/p", dest) == dest
+    assert dest.read_bytes() == PDF_BODY
 
 
 async def test_download_pdf_sends_user_agent(tmp_path):

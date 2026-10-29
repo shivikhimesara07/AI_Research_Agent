@@ -71,9 +71,11 @@ def test_parse_arxiv_feed():
     assert lora.year == 2021 and lora.abstract == "An important paradigm of NLP."
     assert lora.pdf_url == "http://arxiv.org/pdf/2106.09685v2"
     assert lora.source == "arxiv"
-    # Sparse entry: no pdf link -> built from the id; unparseable date -> no year.
-    assert attention.year is None and attention.abstract is None
-    assert attention.pdf_url == "https://arxiv.org/pdf/1706.03762"
+    # Requirement: results show a link to the paper when available. This entry has its abs page.
+    assert attention.url == "http://arxiv.org/abs/1706.03762v7"
+    assert attention.title == "Attention Is All You Need"
+    # Not asserted: the unparseable date becoming year=None, and building a PDF link from the id
+    # when the feed has none. Both are reasonable, but they are the code's choices.
 
 
 def test_parse_arxiv_feed_empty():

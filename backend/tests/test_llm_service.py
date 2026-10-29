@@ -65,7 +65,9 @@ async def test_no_api_key_raises_not_configured():
 async def test_rate_limit_is_retried_then_succeeds(sleeps):
     svc, models = make_service(api_error(429, "quota"), "  A summary.  ")
     assert await svc.summarize("T", "text", "full_text") == "A summary."
-    assert len(models.calls) == 2 and sleeps == [5]
+    # Requirement: a rate limit is retried after waiting. How long to wait is the code's choice.
+    assert len(models.calls) == 2
+    assert len(sleeps) == 1 and sleeps[0] > 0
 
 
 async def test_rate_limit_on_every_attempt_raises_rate_limited(sleeps):
@@ -133,13 +135,19 @@ async def test_extract_metadata_parses_json_and_requests_schema():
     assert meta.title == "Tidal Pruning" and meta.authors == ["I. Halvorsen"] and meta.year is None
     config = models.calls[0]["config"]
     assert config.response_mime_type == "application/json"
-    assert config.response_schema is not None
+    # Requirement (HW1 plan): pass a response_schema so the model must return exactly these fields.
+    assert {"title", "authors", "year", "abstract"} <= set(config.response_schema.model_fields)
 
 
-async def test_extract_metadata_truncates_long_input():
+async def test_extract_metadata_only_sends_the_first_pages():
+    # Requirement (HW1 plan): Gemini extraction runs over "the first ~2 pages". Two pages of a
+    # paper are roughly 8-10k characters, so text 30,000 characters in must not be sent.
     svc, models = make_service(json.dumps({"title": "T", "authors": ["A"]}))
-    await svc.extract_metadata("x" * 50_000)
-    assert len(models.calls[0]["contents"]) < 50_000
+    text = "Title and authors on page one. " + "x" * 30_000 + " PAGE-EIGHT-MARKER"
+    await svc.extract_metadata(text)
+    prompt = models.calls[0]["contents"]
+    assert "Title and authors on page one." in prompt
+    assert "PAGE-EIGHT-MARKER" not in prompt
 
 
 @pytest.mark.parametrize(

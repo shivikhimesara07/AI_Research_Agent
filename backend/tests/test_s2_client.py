@@ -111,12 +111,14 @@ async def test_client_errors_raise_immediately_without_retry(status, error):
     assert len(seen) == 1
 
 
-def test_backoff_grows_and_respects_retry_after_cap():
+def test_backoff_grows_and_respects_retry_after():
+    # Requirement (HW1 plan): exponential backoff, honouring Retry-After.
     backoff = REAL_BACKOFF
-    assert 1 <= backoff(1, None) <= 1.5
-    assert 2 <= backoff(2, None) <= 2.5
-    assert backoff(1, 10) == 10       # Retry-After wins when it's longer
-    assert backoff(1, 999) == 30.0    # ...but is capped at 30 s
+    first, second, third = backoff(1, None), backoff(2, None), backoff(3, None)
+    assert 0 < first < second < third                     # waits grow between attempts
+    assert backoff(1, 10) >= 10                           # a server-requested wait is respected
+    # Not asserted: the exact base delays, the jitter, and the cap on very long Retry-After values.
+    # The requirement doesn't specify them; they are the code's choices.
 
 
 @pytest.mark.parametrize("value, expected", [("5", 5.0), ("1.5", 1.5), (None, None), ("", None),

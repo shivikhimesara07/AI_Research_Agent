@@ -168,6 +168,67 @@ def paper_service(fake_s2, fake_pdf, fake_llm, tmp_path):
     return deps.PaperService(fake_s2, fake_pdf, fake_llm, tmp_path / "uploads")
 
 
+class RecordingLLM:
+    """The only fake in the end-to-end tests: records exactly what text the app sends to the LLM.
+
+    extract_metadata returns None (as when Gemini is unavailable), so upload metadata must come
+    from the real PDF parser rather than from canned LLM output.
+    """
+
+    def __init__(self):
+        self.summaries: list[dict] = []
+        self.questions: list[dict] = []
+
+    async def summarize(self, title, text, basis):
+        self.summaries.append({"title": title, "text": text, "basis": basis})
+        return f"summary #{len(self.summaries)}"
+
+    async def answer(self, title, text, basis, history, question):
+        self.questions.append({"text": text, "basis": basis, "history": list(history), "question": question})
+        return f"answer #{len(self.questions)}"
+
+    async def extract_metadata(self, first_pages_text):
+        return None
+
+
+def no_network():
+    """An httpx transport that fails the test if the app tries to reach the network."""
+    import httpx
+
+    def handler(request):
+        raise AssertionError(f"unexpected network call: {request.method} {request.url}")
+
+    return httpx.MockTransport(handler)
+
+
+@pytest.fixture
+def recording_llm():
+    return RecordingLLM()
+
+
+@pytest.fixture
+def real_client(engine, recording_llm, tmp_path):
+    """Real PDF parser, real pipeline, real routers, real DB; only the LLM is fake."""
+    from app.services.pdf_service import PdfService
+    from app.services.s2_client import S2Client
+
+    app = create_app(engine=engine)
+
+    def _session():
+        with Session(engine) as session:
+            yield session
+
+    s2 = S2Client("https://s2.invalid/graph/v1", None, min_interval=0, transport=no_network())
+    pdf = PdfService(transport=no_network())
+    app.dependency_overrides[get_session] = _session
+    app.dependency_overrides[deps.get_llm_service] = lambda: recording_llm
+    app.dependency_overrides[deps.get_paper_service] = lambda: deps.PaperService(
+        s2, pdf, recording_llm, tmp_path / "uploads"
+    )
+    with TestClient(app) as c:
+        yield c
+
+
 @pytest.fixture
 def client(engine, fake_search, fake_pdf, fake_llm, fake_s2, tmp_path):
     app = create_app(engine=engine)

@@ -34,5 +34,41 @@ def make_pdf(
     return path
 
 
+class KnownPaper:
+    """A test paper whose metadata and contents we know, so expected values come from the input."""
+
+    TITLE = "Tidal Attention Pruning for Protein Contact Maps"
+    AUTHORS = ["Ingrid Halvorsen", "Chidi Okafor", "Lucia Ferrante"]
+    YEAR = 2024
+    ABSTRACT = "We study how attention heads in protein language models can be pruned without losing accuracy."
+    # Facts that appear ONLY in the body on page 2 -- never in the title, abstract, or metadata.
+    BODY_FACT_1 = "18,437"
+    BODY_FACT_2 = "58.3"
+
+    @classmethod
+    def pages(cls) -> list[list[Line]]:
+        return [
+            [
+                (cls.TITLE, 18),
+                "Ingrid Halvorsen, Chidi Okafor and Lucia Ferrante",
+                "Institute for Computational Biology, Example University",
+                f"Workshop on Efficient Biology Models, {cls.YEAR}",
+                "Abstract",
+                cls.ABSTRACT,
+                "1 Introduction",
+                "Protein language models are slow at inference time.",
+            ],
+            [
+                "2 Experiments",
+                f"The KESTREL-Contacts benchmark contains exactly {cls.BODY_FACT_1} protein chains.",
+                f"Removing the saliency warm-up drops P@L/5 from 71.9 to {cls.BODY_FACT_2}.",
+            ],
+        ]
+
+    @classmethod
+    def build(cls, path: Path) -> bytes:
+        return make_pdf(path, cls.pages()).read_bytes()
+
+
 def pdf_bytes(tmp_path: Path, pages: list[list[Line]], name: str = "doc.pdf", **kwargs) -> bytes:
     return make_pdf(tmp_path / name, pages, **kwargs).read_bytes()

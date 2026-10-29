@@ -5,7 +5,6 @@ import pytest
 from sqlmodel import select
 
 from app.models import ExtractedMetadata, Message, Paper, PaperMeta
-from app.services.paper_service import HISTORY_EXCHANGES
 from app.services.s2_client import S2TransientError
 
 PDF = b"%PDF-1.7 fake upload bytes"
@@ -94,7 +93,9 @@ async def test_ingest_upload_attaches_pdf_to_paper_saved_from_search(paper_servi
     fake_s2.items["arXiv:2106.09685"] = s2_item()
     paper, created = await paper_service.ingest_upload(session, "lora.pdf", PDF)
     assert not created and paper.id == saved.id
-    assert paper.full_text_status == "ok" and paper.pdf_path
+    # The saved paper now carries the uploaded PDF and its text, with no second library entry.
+    assert Path(paper.pdf_path).read_bytes() == PDF
+    assert paper.full_text == PAGE1 and paper.full_text_status == "ok"
     assert len(session.exec(select(Paper)).all()) == 1
 
 
@@ -127,10 +128,14 @@ async def test_lookup_skips_failures_and_tries_next_id(paper_service, fake_pdf, 
     assert fake_s2.lookups == ["DOI:10.1/a", "arXiv:2106.09685"]
 
 
-async def test_lookup_tries_at_most_five_ids(paper_service, fake_pdf, fake_s2, tmp_path):
-    fake_pdf.identifiers = [f"DOI:10.1/{i}" for i in range(8)]
+async def test_lookup_stops_at_first_success(paper_service, fake_pdf, fake_s2, tmp_path):
+    # Requirement (HW1 plan): try the stages in order, "stopping at the first success".
+    fake_pdf.identifiers = ["arXiv:2106.09685", "DOI:10.1/b", "DOI:10.1/c"]
+    fake_s2.items["arXiv:2106.09685"] = s2_item()
     await paper_service.extract_upload_metadata(PAGE1, tmp_path / "x.pdf")
-    assert len(fake_s2.lookups) == 5
+    assert fake_s2.lookups == ["arXiv:2106.09685"]
+    # Not asserted: the code also caps how many identifiers it will try when none match.
+    # The requirement doesn't set a number, so the cap is the code's choice.
 
 
 async def test_s2_hit_without_authors_falls_through(paper_service, fake_pdf, fake_s2, tmp_path):
@@ -290,8 +295,12 @@ async def test_ask_sends_only_recent_history(paper_service, session, fake_llm):
     for i in range(6):
         await paper_service.ask(session, paper, f"Q{i}")
     history = fake_llm.calls[-1][2]
-    assert len(history) == HISTORY_EXCHANGES * 2
-    assert history[0] == ("user", "Q1") and history[-1] == ("assistant", "Answer to: Q4")
+    # Requirement (HW1 plan): send only the last 3-4 exchanges, not the whole thread.
+    sent_questions = [content for role, content in history if role == "user"]
+    assert 3 <= len(sent_questions) <= 4
+    assert sent_questions[-1] == "Q4"                      # the most recent exchange is included
+    assert "Q0" not in sent_questions                      # the oldest one is dropped
+    assert history[-1] == ("assistant", "Answer to: Q4")
     assert len(paper_service.messages(session, paper.id)) == 12  # full history still stored
 
 
