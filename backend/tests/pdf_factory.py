@@ -34,6 +34,31 @@ def make_pdf(
     return path
 
 
+def make_layout_pdf(path: Path, pages: list[list[dict]], *, metadata: dict | None = None) -> Path:
+    """Full control over placement. Each item: {"text", "x"=72, "y", "size"=10, "font"="helv", "rotate"=0}.
+
+    Items are written in list order, which is the order a PDF producer would emit them in.
+    Items without "y" flow down the page below the previous one.
+    """
+    doc = pymupdf.open()
+    for items in pages:
+        page = doc.new_page()
+        y = 72.0
+        for item in items:
+            size = item.get("size", 10)
+            if "y" in item:
+                y = item["y"]
+            page.insert_text((item.get("x", 72), y), item["text"], fontsize=size,
+                             fontname=item.get("font", "helv"), rotate=item.get("rotate", 0))
+            if "y" not in item or item.get("advance", True):
+                y += size + 6
+    if metadata:
+        doc.set_metadata(metadata)
+    doc.save(path)
+    doc.close()
+    return path
+
+
 class KnownPaper:
     """A test paper whose metadata and contents we know, so expected values come from the input."""
 
