@@ -4,6 +4,64 @@ A web app for finding, organizing, and understanding research papers. Search Sem
 save papers to a local library, upload your own PDFs, and use an LLM (Google Gemini) to summarize a
 paper or answer questions about it — based on the paper's full text, not just its abstract.
 
+## HW2 test suite
+
+- **Repository:** https://github.com/shivikhimesara07/AI_Research_Agent
+- **Final test suite:** [`backend/tests/`](backend/tests) — 225 pytest tests (unit, service, API,
+  end-to-end, and adversarial PDF tests)
+- **Results and analysis:** [`hw2-results.md`](hw2-results.md) — coverage, test counts, mutation
+  scores and bugs found at each stage
+- **Mutation testing tool:** [`backend/tools/mutate.py`](backend/tools/mutate.py)
+
+Running the tests needs only Python 3.10+. No API keys, `.env` file, Node.js, or running server are
+needed: the LLM, Semantic Scholar and arXiv are faked or blocked, and each test uses its own
+in-memory database.
+
+**1. Install dependencies** (pytest and pytest-cov are included in `requirements.txt`):
+
+```bash
+git clone https://github.com/shivikhimesara07/AI_Research_Agent.git
+cd AI_Research_Agent/backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+**2. Run the tests:**
+
+```bash
+.venv/bin/pytest
+```
+
+Expected: `201 passed, 24 xfailed`. The 24 xfailed tests are deliberate: each one documents a known
+bug in the app (list them with `.venv/bin/pytest -rx`).
+
+**3. Reproduce the coverage results:**
+
+```bash
+.venv/bin/pytest --cov --cov-report=term-missing
+```
+
+Expected last line of the report:
+
+```
+TOTAL                              852     13    192     14  97.4%
+```
+
+That is 852 statements with 13 missed (**98.5% line coverage**), 192 branches of which 178 are
+covered (**92.7% branch coverage**), and **97.4%** combined. The full per-file report to compare
+against is [`backend/coverage-final.txt`](backend/coverage-final.txt).
+
+**4. Reproduce the mutation score** (optional, about 30 seconds):
+
+```bash
+.venv/bin/python tools/mutate.py
+```
+
+Expected: `Mutation score: 15/18 (83%)`.
+
+On Windows, use `py -m venv .venv` and `.venv\Scripts\...` in place of `.venv/bin/...`. More detail
+is in [Tests](#tests) below.
+
 ## Features
 
 | Feature | How it works |
